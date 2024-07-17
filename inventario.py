@@ -1,49 +1,87 @@
 import random
 
-# Define the parameters
-demand_mean = 100  # Mean demand per time period
-demand_std = 20  # Standard deviation of demand per time period
-lead_time_mean = 2  # Mean lead time
-lead_time_std = 0.5  # Standard deviation of lead time
-initial_inventory = 100  # Initial inventory level
-reorder_point = 50  # Reorder point
-order_quantity = 100  # Order quantity
+# FALTA VARIAR LOS PARAMETROS DE NIVEL MINIMO DE INVENTARIO Y CANTIDAD PEDIDA
 
-# Simulate the inventory model
-inventory = initial_inventory
-total_demand = 0
-total_orders = 0
+# parámetros
+tiempo_simulacion = 50
+demanda_promedio = 70
+demanda_desviacion = 12
+tiempo_arribo_pedido_promedio = 2
+tiempo_arribo_pedido_desviacion = 0.5
+inventario_inicial = 200
+limite_pedido = 50
+cantidad_pedida = 150
 
-while inventory > 0:
-  # Generate demand and lead time
-  demand = max(0, int(random.normalvariate(demand_mean, demand_std)))
-  lead_time = max(0, random.normalvariate(lead_time_mean, lead_time_std))
-  
-  # Check if reorder is needed
-  if inventory <= reorder_point:
-    inventory += order_quantity
-    total_orders += 1
-  
-  # Update inventory level
-  inventory -= demand
-  total_demand += demand
-  
-  # Print current inventory status
-  print(f"Inventory: {inventory}, Demand: {demand}, Lead Time: {lead_time}")
+# costos
+costo_unitario = 50
+costo_preparacion = 20
+costo_shortage = 100
+costo_holding = 10
 
-# Print simulation results
-print(f"Total demand: {total_demand}")
-print(f"Total orders placed: {total_orders}")
+# inicializamos variables
+costo_mantenimiento_final = 0
+costo_por_faltante_final = 0
+demora_hasta_proximo_pedido = None
+
+# Corrida de la simulación
+inventario = inventario_inicial
+demanda_total = 0
+nro_pedidos = 0
+
+for _ in range(tiempo_simulacion):
+    demanda = max(0, int(random.normalvariate(demanda_promedio, demanda_desviacion)))
+
+    # paso del tiempo actualiza tiempos de arribo
+    if demora_hasta_proximo_pedido is not None:
+        demora_hasta_proximo_pedido -= 1
+
+    # llego un pedido?
+    if demora_hasta_proximo_pedido is not None and demora_hasta_proximo_pedido == 0:
+
+        inventario += cantidad_pedida
+        print("llego un pedido")
+        demora_hasta_proximo_pedido = None
+
+    # hace falta un pedido?
+    tiempo_arribo_pedido = 0
+    if inventario <= limite_pedido:
+        # no se realiza un pedido si ya se realizo uno
+        if (
+            demora_hasta_proximo_pedido is None
+        ):  #  no hay pedidos sin agregar al inventario
+            print("realice un pedido")
+            tiempo_arribo_pedido = max(
+                1,
+                int(
+                    random.normalvariate(
+                        tiempo_arribo_pedido_promedio, tiempo_arribo_pedido_desviacion
+                    )
+                ),
+            )
+            demora_hasta_proximo_pedido = tiempo_arribo_pedido
+            nro_pedidos += 1
+    # actualizar inventario
+    inventario -= demanda
+    demanda_total += demanda
+    print(
+        f"Inventario: {inventario}, Demanda: {demanda}, Tiempo de arribo del pedido: {tiempo_arribo_pedido}"
+    )
+
+    # Actualizar costos
+    costo_mantenimiento_final += max(0, inventario * costo_holding)
+    costo_por_faltante_final += (
+        max(0, -inventario) * costo_shortage
+    )  # es un costo positivo si hay faltante
+
+print(f"Demanda Total: {demanda_total}")
+print(f"Cantidad de pedidos realizados: {nro_pedidos}")
+
+# Medidas de desempeño
+costo_por_pedidos = costo_unitario * nro_pedidos + costo_preparacion
+costo_total = costo_por_pedidos + costo_mantenimiento_final + costo_por_faltante_final
 
 
-# Calculate performance measures
-order_cost = total_orders * order_quantity
-maintenance_cost = (initial_inventory + total_orders * order_quantity) / 2
-shortage_cost = total_demand - initial_inventory
-total_cost = order_cost + maintenance_cost + shortage_cost
-
-# Print performance measures
-print(f"Order cost: {order_cost}")
-print(f"Maintenance cost: {maintenance_cost}")
-print(f"Shortage cost: {shortage_cost}")
-print(f"Total cost: {total_cost}")
+print(f"Costo por pedidos: {costo_por_pedidos}")
+print(f"Costos de mantenimiento: {costo_mantenimiento_final}")
+print(f"Costos por faltante: {costo_por_faltante_final}")
+print(f"Costos totales: {costo_total}")
